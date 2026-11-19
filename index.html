@@ -169,7 +169,9 @@
     $('coords').textContent = `${Math.round(p.x)}, ${Math.round(p.y)}`;
 
     if (e.pointerType === 'pen') {
-      activeStroke = { color: '#1769e0', points: [] };
+      // Keep the pointer id rather than relying on `buttons`: iPadOS can
+      // occasionally report buttons === 0 during an otherwise active Pencil stroke.
+      activeStroke = { pointerId: e.pointerId, color: '#1769e0', points: [] };
       strokes.push(activeStroke);
       addPenPoint(e);
       return;
@@ -197,7 +199,8 @@
     if (!pointers.has(e.pointerId)) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
 
-    if (e.pointerType === 'pen' && activeStroke && e.buttons !== 0) {
+    if (e.pointerType === 'pen' && activeStroke && e.pointerId === activeStroke.pointerId) {
+      e.preventDefault();
       const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [e];
       for (const sample of events) addPenPoint(sample);
       return;
@@ -221,7 +224,9 @@
   });
 
   function finishPointer(e) {
-    if (e.pointerType === 'pen') activeStroke = null;
+    if (e.pointerType === 'pen' && activeStroke && e.pointerId === activeStroke.pointerId) {
+      activeStroke = null;
+    }
     pointers.delete(e.pointerId);
     if (pointers.size === 0) gesture = null;
     else if ([...pointers.values()].filter(p => p.type === 'touch').length === 1) {
